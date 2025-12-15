@@ -1,18 +1,21 @@
-apk add openrc \
+#!/bin/sh
+# x11.sh - setup X11/VNC for iSH or bash.
+run_ish() {
+    apk add openrc \
         xorg-server xf86-video-dummy x11vnc \
         xfce4 xfce4-terminal \
 
-rc-update add dbus
+    rc-update add dbus
 
-cat <<EOF > /etc/profile.d/ish.sh
+    cat <<'EOF' > /etc/profile.d/ish.sh
 export DISPLAY=:0
 export NO_AT_BRIDGE=1
 cat /dev/location > /dev/null &
 EOF
 
-mkdir -p /etc/X11/xorg.conf.d
+    mkdir -p /etc/X11/xorg.conf.d
 
-cat <<EOF > /etc/X11/xorg.conf.d/10-headless.conf
+    cat <<'EOF' > /etc/X11/xorg.conf.d/10-headless.conf
 Section "Device"
     Identifier  "dummy_videocard"
     Driver      "dummy"
@@ -38,12 +41,29 @@ Section "Screen"
 EndSection
 EOF
 
-mkdir -p /usr/local/bin
+    mkdir -p /usr/local/bin
 
-cat <<EOF > /usr/local/bin/startvnc
+    cat <<'EOF' > /usr/local/bin/startvnc
 #!/bin/sh
 startxfce4 &
 x11vnc -rfbport 5901 -shared -noshm
 EOF
 
-chmod +x /usr/local/bin/startvnc
+    chmod +x /usr/local/bin/startvnc
+}
+
+run_bash() {
+    echo "Detected bash environment. To start the VNC desktop, run: startvnc"
+    if [ -x /usr/local/bin/startvnc ] && [ -n "$PS1" ]; then
+        /usr/local/bin/startvnc &
+    fi
+}
+
+if [ -f /etc/os-release ] && grep -qi alpine /etc/os-release && [ -e /dev/location ]; then
+    run_ish
+elif [ -n "$BASH_VERSION" ]; then
+    run_bash
+else
+    echo "Not running in iSH or bash environment; exiting."
+    exit 0
+fi
